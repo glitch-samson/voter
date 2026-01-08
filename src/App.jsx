@@ -12,6 +12,7 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [notification, setNotification] = useState(null)
   const [contestants, setContestants] = useState([])
+  const [posts, setPosts] = useState([])
   const [winnersAnnounced, setWinnersAnnounced] = useState(false)
 
   // Check if user is logged in
@@ -65,7 +66,7 @@ function App() {
         const { data } = await supabase
           .from('contestants')
           .select('*')
-          .order('post', { ascending: true })
+          .order('post_id', { ascending: true })
         
         setContestants(data || [])
       } catch (error) {
@@ -74,6 +75,24 @@ function App() {
     }
 
     fetchContestants()
+  }, [])
+
+  // Fetch posts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const { data } = await supabase
+          .from('posts')
+          .select('*')
+          .order('name', { ascending: true })
+        
+        setPosts(data || [])
+      } catch (error) {
+        console.error('Error fetching posts:', error)
+      }
+    }
+
+    fetchPosts()
   }, [])
 
   // Fetch election status
@@ -165,6 +184,8 @@ function App() {
           <AdminDashboard 
             contestants={contestants}
             setContestants={setContestants}
+            posts={posts}
+            setPosts={setPosts}
             winnersAnnounced={winnersAnnounced}
             setWinnersAnnounced={setWinnersAnnounced}
             notify={notify}
@@ -272,6 +293,7 @@ function App() {
             {activePage === 'voting' && (
               <VoterView 
                 contestants={contestants}
+                posts={posts}
                 currentUser={currentUser}
                 winnersAnnounced={winnersAnnounced}
                 notify={notify}
@@ -280,7 +302,7 @@ function App() {
                   supabase
                     .from('contestants')
                     .select('*')
-                    .order('post', { ascending: true })
+                    .order('post_id', { ascending: true })
                     .then(({ data }) => setContestants(data || []))
                 }}
               />

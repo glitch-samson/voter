@@ -20,13 +20,29 @@ export default function AuthScreen({ onAuthSuccess, notify }) {
         if (error) throw error
         
         if (data.user) {
-          const { data: userData } = await supabase
+          let userData = await supabase
             .from('users')
             .select('*')
             .eq('id', data.user.id)
             .single()
           
-          onAuthSuccess({ ...data.user, ...userData })
+          // If user doesn't exist in users table, create them
+          if (!userData.data) {
+            await supabase.from('users').insert([{
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.email.split('@')[0],
+              role: 'voter'
+            }])
+            
+            userData = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', data.user.id)
+              .single()
+          }
+          
+          onAuthSuccess({ ...data.user, ...userData.data })
           notify('Welcome back!')
         }
       } else {

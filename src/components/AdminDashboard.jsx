@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-export default function AdminDashboard({ contestants, setContestants, winnersAnnounced, setWinnersAnnounced, notify, currentUser }) {
+export default function AdminDashboard({ contestants, setContestants, posts, setPosts, winnersAnnounced, setWinnersAnnounced, notify, currentUser }) {
   const [formData, setFormData] = useState({ name: '', post: '', image: '', bio: '' })
   const [imageFile, setImageFile] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
@@ -11,6 +11,7 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
   const [stats, setStats] = useState({ totalVotes: 0, totalContestants: 0, totalVoters: 0 })
   const [editingVoteId, setEditingVoteId] = useState(null)
   const [voteInputValue, setVoteInputValue] = useState('')
+  const [postFormData, setPostFormData] = useState({ name: '', description: '' })
 
   // Calculate statistics
   useEffect(() => {
@@ -49,7 +50,7 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
         return
       }
 
-      let imageUrl = formData.image
+      let imageUrl = ''
 
       // If an image file was selected, upload it to Supabase Storage
       if (imageFile) {
@@ -73,7 +74,7 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
               .from('contestant-images')
               .getPublicUrl(filePath)
 
-            imageUrl = publicUrlData?.publicUrl || imageUrl
+            imageUrl = publicUrlData?.publicUrl || ''
           }
         } catch (error) {
           console.warn('Image upload error:', error)
@@ -85,7 +86,7 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
         .from('contestants')
         .insert([{
           name: formData.name,
-          post: formData.post,
+          post_id: formData.post,
           image: imageUrl,
           bio: formData.bio,
           votes: 0
@@ -101,12 +102,63 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
       const { data } = await supabase
         .from('contestants')
         .select('*')
-        .order('post', { ascending: true })
+        .order('post_id', { ascending: true })
       setContestants(data || [])
     } catch (error) {
       notify(error.message || 'Error adding contestant')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddPost = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      if (!postFormData.name) {
+        notify('Post name is required')
+        return
+      }
+
+      const { error } = await supabase
+        .from('posts')
+        .insert([{
+          name: postFormData.name,
+          description: postFormData.description
+        }])
+
+      if (error) throw error
+
+      notify('Post created successfully!')
+      setPostFormData({ name: '', description: '' })
+
+      // Refresh posts
+      const { data } = await supabase.from('posts').select('*').order('name')
+      setPosts(data || [])
+    } catch (error) {
+      notify(error.message || 'Error creating post')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeletePost = async (id) => {
+    if (!window.confirm('Delete this post? All contestants in this post will also be deleted!')) return
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      notify('Post deleted')
+      setPosts(posts.filter(p => p.id !== id))
+      setContestants(contestants.filter(c => c.post_id !== id))
+    } catch (error) {
+      notify(error.message || 'Error deleting post')
     }
   }
 
@@ -231,12 +283,10 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
   }
 
   const getWinners = () => {
-    const positions = [...new Set(contestants.map(c => c.post))]
-    return positions.map(post => {
-      const winner = contestants
-        .filter(c => c.post === post)
-        .sort((a, b) => (b.votes || 0) - (a.votes || 0))[0]
-      return { post, winner }
+    return posts.map(post => {
+      const postContestants = contestants.filter(c => c.post_id === post.id)
+      const winner = postContestants.sort((a, b) => (b.votes || 0) - (a.votes || 0))[0]
+      return { post, winner, postContestants }
     })
   }
 
@@ -269,6 +319,12 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
           className={`pb-4 px-4 font-bold transition-all ${activeTab === 'overview' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
         >
           Overview
+        </button>
+        <button 
+          onClick={() => handleTabChange('posts')}
+          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'posts' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          Manage Posts ({posts.length})
         </button>
         <button 
           onClick={() => handleTabChange('contestants')}
@@ -320,8 +376,8 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
           {/* Current Winners */}
           <div className="grid md:grid-cols-2 gap-6">
             {getWinners().map(({ post, winner }) => (
-              <div key={post} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 p-6">
-                <h3 className="text-sm font-bold text-blue-300 uppercase mb-3">{post}</h3>
+              <div key={post.id} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 p-6">
+                <h3 className="text-sm font-bold text-blue-300 uppercase mb-3">{post.name}</h3>
                 {winner ? (
                   <div className="flex items-center gap-4">
                     <img src={winner.image} className="w-16 h-16 rounded-full object-cover ring-2 ring-blue-200" alt={winner.name} />
@@ -360,14 +416,20 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Position / Post *</label>
-                  <input 
-                    type="text" 
+                  <select 
                     required
-                    placeholder="e.g. President"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none"
                     value={formData.post}
                     onChange={e => setFormData({...formData, post: e.target.value})}
-                  />
+                  >
+                    <option value="">Select a post...</option>
+                    {posts.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  {posts.length === 0 && (
+                    <p className="text-xs text-amber-400 mt-1">⚠️ Create a post first in the "Manage Posts" tab</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-300">Candidate Photo</label>
@@ -421,7 +483,7 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
                       <tr key={c.id} className="hover:bg-slate-700/40 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={c.image || 'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full object-cover" alt={c.name} />
+                            <img src={c.image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=40&h=40&fit=crop'} className="w-10 h-10 rounded-full object-cover" alt={c.name} />
                             <span className="font-medium text-white">{c.name}</span>
                           </div>
                         </td>
@@ -504,12 +566,13 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
       {/* Results Tab */}
       {activeTab === 'results' && (
         <div className="space-y-6">
-          {getWinners().map(({ post, winner }) => {
-            const others = contestants.filter(c => c.post === post && c.id !== winner?.id).sort((a, b) => (b.votes || 0) - (a.votes || 0))
+          {getWinners().map(({ post, winner, postContestants }) => {
+            const others = postContestants.filter(c => c.id !== winner?.id).sort((a, b) => (b.votes || 0) - (a.votes || 0))
             return (
-              <div key={post} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+              <div key={post.id} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-6 text-white">
-                  <h3 className="text-lg font-bold">{post}</h3>
+                  <h3 className="text-lg font-bold">{post.name}</h3>
+                  {post.description && <p className="text-sm text-blue-100 mt-1">{post.description}</p>}
                 </div>
                 <div className="p-6">
                   {winner ? (
@@ -594,6 +657,96 @@ export default function AdminDashboard({ contestants, setContestants, winnersAnn
           </table>
         </div>
       )}
+
+      {/* Manage Posts Tab */}
+      {activeTab === 'posts' && (
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Add Post Form */}
+          <div className="lg:col-span-1">
+            <div className="bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-700 sticky top-8">
+              <h2 className="text-xl font-bold mb-6 text-white">Create New Post</h2>
+              <form onSubmit={handleAddPost} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Post Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. President"
+                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={postFormData.name}
+                    onChange={e => setPostFormData({...postFormData, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+                  <textarea 
+                    placeholder="Brief description of this position..."
+                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
+                    value={postFormData.description}
+                    onChange={e => setPostFormData({...postFormData, description: e.target.value})}
+                  ></textarea>
+                </div>
+                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50">
+                  {loading ? 'Creating...' : '+ Create Post'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Posts List */}
+          <div className="lg:col-span-2">
+            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-slate-700 border-b border-slate-600">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold text-slate-200">Post Name</th>
+                    <th className="px-6 py-4 font-semibold text-slate-200">Contestants</th>
+                    <th className="px-6 py-4 font-semibold text-slate-200 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                  {posts.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                        No posts created yet
+                      </td>
+                    </tr>
+                  ) : (
+                    posts.map(p => {
+                      const postContestantCount = contestants.filter(c => c.post_id === p.id).length
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-700/40 transition-colors">
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="font-medium text-white">{p.name}</p>
+                              <p className="text-xs text-slate-400">{p.description}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-300 text-sm">
+                            <span className="bg-blue-900/40 text-blue-200 px-3 py-1 rounded-full font-semibold">
+                              {postContestantCount} candidate{postContestantCount !== 1 ? 's' : ''}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => handleDeletePost(p.id)}
+                              className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <i className="fas fa-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-export default function VoterView({ contestants, currentUser, winnersAnnounced, notify, onVoteSuccess }) {
-  const [votedPosts, setVotedPosts] = useState([])
+export default function VoterView({ contestants, posts, currentUser, winnersAnnounced, notify, onVoteSuccess }) {
+  const [votedPostIds, setVotedPostIds] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -10,10 +10,19 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
       try {
         const { data } = await supabase
           .from('votes')
-          .select('post')
+          .select('votes(contestant_id)')
           .eq('user_id', currentUser.id)
         
-        setVotedPosts(data?.map(v => v.post) || [])
+        // Get the post_ids of posts this user has already voted for
+        if (data && data.length > 0) {
+          const votedContestantIds = data.map(v => v.votes?.contestant_id).filter(Boolean)
+          const contestantData = await supabase
+            .from('contestants')
+            .select('post_id')
+            .in('id', votedContestantIds)
+          
+          setVotedPostIds(contestantData.data?.map(c => c.post_id) || [])
+        }
       } catch (error) {
         console.error('Error fetching votes:', error)
       } finally {
@@ -26,7 +35,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
     }
   }, [currentUser?.id])
 
-  const positions = [...new Set(contestants.map(c => c.post))]
+  const positions = posts || []
   
   if (winnersAnnounced) {
     return (
@@ -52,7 +61,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
     return <div className="text-center py-20">Loading votes...</div>
   }
 
-  const handleVote = async (candidateId, post) => {
+  const handleVote = async (candidateId, postId) => {
     try {
       // Insert vote
       const { error } = await supabase
@@ -60,7 +69,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
         .insert([{
           user_id: currentUser.id,
           contestant_id: candidateId,
-          post: post
+          post: null
         }])
       
       if (error) throw error
@@ -77,7 +86,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
         .update({ votes: (contestant?.votes || 0) + 1 })
         .eq('id', candidateId)
 
-      setVotedPosts([...votedPosts, post])
+      setVotedPostIds([...votedPostIds, postId])
       notify('Vote cast successfully!')
       onVoteSuccess()
     } catch (error) {
@@ -105,13 +114,13 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
       )}
       
       {positions.map(post => (
-        <section key={post} className="animate-in fade-in duration-700">
+        <section key={post.id} className="animate-in fade-in duration-700">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
               <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
-              {post}
+              {post.name}
             </h2>
-            {votedPosts.includes(post) && (
+            {votedPostIds.includes(post.id) && (
               <span className="text-green-600 font-medium flex items-center gap-1">
                 <i className="fas fa-check-circle"></i> Voted
               </span>
@@ -119,7 +128,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contestants.filter(c => c.post === post).map(candidate => (
+            {contestants.filter(c => c.post_id === post.id).map(candidate => (
               <div key={candidate.id} className="bg-white rounded-2xl shadow-sm border hover:shadow-md transition-all group overflow-hidden">
                 <div className="relative h-48 overflow-hidden">
                   <img 
@@ -130,7 +139,7 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                   <div className="absolute bottom-4 left-4 text-white">
                     <h3 className="text-lg font-bold">{candidate.name}</h3>
-                    <p className="text-sm opacity-90">{candidate.post}</p>
+                    <p className="text-sm opacity-90">{post.name}</p>
                   </div>
                 </div>
                 <div className="p-5">
@@ -144,15 +153,15 @@ export default function VoterView({ contestants, currentUser, winnersAnnounced, 
                       <span className="text-xl font-bold text-slate-900">{candidate.votes || 0}</span>
                     </div>
                     <button 
-                      disabled={votedPosts.includes(post)}
-                      onClick={() => handleVote(candidate.id, post)}
+                      disabled={votedPostIds.includes(post.id)}
+                      onClick={() => handleVote(candidate.id, post.id)}
                       className={`px-6 py-2 rounded-xl font-bold transition-all ${
-                        votedPosts.includes(post) 
+                        votedPostIds.includes(post.id) 
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
                         : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
                       }`}
                     >
-                      {votedPosts.includes(post) ? 'Cast' : 'Vote'}
+                      {votedPostIds.includes(post.id) ? 'Cast' : 'Vote'}
                     </button>
                   </div>
                 </div>
