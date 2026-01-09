@@ -1002,33 +1002,33 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
 
       {/* Manage Posts Tab */}
       {activeTab === 'posts' && (
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Add Post Form */}
           <div className="lg:col-span-1">
-            <div className="bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-700 sticky top-8">
-              <h2 className="text-xl font-bold mb-6 text-white">Create New Post</h2>
-              <form onSubmit={handleAddPost} className="space-y-4">
+            <div className="bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-700 sticky top-8">
+              <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Create New Post</h2>
+              <form onSubmit={handleAddPost} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Post Name *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Post Name *</label>
                   <input 
                     type="text" 
                     required
                     placeholder="e.g. President"
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 sm:px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                     value={postFormData.name}
                     onChange={e => setPostFormData({...postFormData, name: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+                  <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Description</label>
                   <textarea 
                     placeholder="Brief description of this position..."
-                    className="w-full px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
+                    className="w-full px-3 sm:px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none text-sm"
                     value={postFormData.description}
                     onChange={e => setPostFormData({...postFormData, description: e.target.value})}
                   ></textarea>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50">
+                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 sm:py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm sm:text-base">
                   {loading ? 'Creating...' : '+ Create Post'}
                 </button>
               </form>
@@ -1037,19 +1037,19 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
 
           {/* Posts List */}
           <div className="lg:col-span-2">
-            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-700 border-b border-slate-600">
+            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-700 border-b border-slate-600 sticky top-0">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-slate-200">Post Name</th>
-                    <th className="px-6 py-4 font-semibold text-slate-200">Contestants</th>
-                    <th className="px-6 py-4 font-semibold text-slate-200 text-right">Actions</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Post Name</th>
+                    <th className="hidden sm:table-cell px-6 py-4 font-semibold text-slate-200">Contestants</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-right text-xs sm:text-base">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
                   {posts.length === 0 ? (
                     <tr>
-                      <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="3" className="px-3 sm:px-6 py-6 sm:py-8 text-center text-slate-400 text-sm">
                         No posts created yet
                       </td>
                     </tr>
@@ -1058,21 +1058,21 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
                       const postContestantCount = contestants.filter(c => c.post_id === p.id).length
                       return (
                         <tr key={p.id} className="hover:bg-slate-700/40 transition-colors">
-                          <td className="px-6 py-4">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
                             <div>
-                              <p className="font-medium text-white">{p.name}</p>
-                              <p className="text-xs text-slate-400">{p.description}</p>
+                              <p className="font-medium text-white text-xs sm:text-base">{p.name}</p>
+                              <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-slate-300 text-sm">
-                            <span className="bg-blue-900/40 text-blue-200 px-3 py-1 rounded-full font-semibold">
+                          <td className="hidden sm:table-cell px-6 py-4 text-slate-300 text-sm">
+                            <span className="bg-blue-900/40 text-blue-200 px-3 py-1 rounded-full font-semibold text-xs">
                               {postContestantCount} candidate{postContestantCount !== 1 ? 's' : ''}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-right">
                             <button 
                               onClick={() => handleDeletePost(p.id)}
-                              className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                              className="text-red-500 hover:text-red-700 p-2 hover:bg-red-900/20 rounded-lg transition-colors text-sm"
                               title="Delete"
                             >
                               <i className="fas fa-trash"></i>
