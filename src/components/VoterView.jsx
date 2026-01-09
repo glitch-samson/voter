@@ -98,21 +98,7 @@ export default function VoterView({ contestants, posts, currentUser, winnersAnno
         throw voteError
       }
 
-      // Update contestant vote count
-      const { data: contestant } = await supabase
-        .from('contestants')
-        .select('votes')
-        .eq('id', candidateId)
-        .single()
-
-      if (contestant) {
-        await supabase
-          .from('contestants')
-          .update({ votes: (contestant.votes || 0) + 1 })
-          .eq('id', candidateId)
-      }
-
-      // Update local state to reflect the vote
+      // Update local state to reflect the vote (contestant vote counts are updated by a DB trigger)
       setVotedPosts([...votedPosts, post.name])
       notify('Vote cast successfully!')
       onVoteSuccess()
