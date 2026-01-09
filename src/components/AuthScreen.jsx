@@ -5,6 +5,7 @@ export default function AuthScreen({ onAuthSuccess, notify }) {
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({ name: '', email: '', password: '' })
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -49,6 +50,11 @@ export default function AuthScreen({ onAuthSuccess, notify }) {
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
+          options: {
+            data: {
+              name: formData.name,
+            },
+          },
         })
         
         if (error) throw error
@@ -120,14 +126,23 @@ export default function AuthScreen({ onAuthSuccess, notify }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              required
-              placeholder="••••••••"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              value={formData.password}
-              onChange={e => setFormData({...formData, password: e.target.value})}
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? 'text' : 'password'}
+                required
+                placeholder="••••••••"
+                className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                value={formData.password}
+                onChange={e => setFormData({...formData, password: e.target.value})}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-semibold"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           <button 
             type="submit" 
