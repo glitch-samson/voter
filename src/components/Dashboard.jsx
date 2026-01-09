@@ -33,12 +33,12 @@ export default function Dashboard({ currentUser, contestants, winnersAnnounced, 
         </div>
       )}
 
-      <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-lg flex items-center justify-between">
+      <div className="bg-slate-900 text-white p-4 sm:p-6 rounded-3xl border border-slate-800 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <p className="text-slate-300 text-sm uppercase font-semibold tracking-wider">Welcome back</p>
-          <h2 className="text-2xl font-bold mt-1">{currentUser?.name || currentUser?.email}</h2>
+          <p className="text-slate-300 text-xs sm:text-sm uppercase font-semibold tracking-wider">Welcome back</p>
+          <h2 className="text-xl sm:text-2xl font-bold mt-1">{currentUser?.name || currentUser?.email}</h2>
         </div>
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-start sm:items-end">
           <span className="text-xs text-slate-400 uppercase tracking-wide mb-1">You are signed in as</span>
           <span className="px-4 py-2 rounded-full bg-slate-800 border border-slate-700 text-sm font-bold uppercase tracking-wide">
             {roleLabel}
@@ -46,19 +46,19 @@ export default function Dashboard({ currentUser, contestants, winnersAnnounced, 
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-3xl text-white shadow-xl">
-          <h3 className="text-blue-100 text-sm font-medium uppercase tracking-wider mb-1">Voting Progress</h3>
-          <div className="text-4xl font-bold mb-4">{votedCount} / {totalPosts}</div>
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
+        <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-4 sm:p-6 rounded-3xl text-white shadow-xl">
+          <h3 className="text-blue-100 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1">Voting Progress</h3>
+          <div className="text-3xl sm:text-4xl font-bold mb-4">{votedCount} / {totalPosts}</div>
           <div className="w-full bg-blue-400/30 rounded-full h-2 mb-2">
             <div className="bg-white h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
           </div>
-          <p className="text-sm text-blue-100">Positions you've voted for</p>
+          <p className="text-xs sm:text-sm text-blue-100">Positions you've voted for</p>
         </div>
         
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-          <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">Total Candidates</h3>
-          <div className="text-4xl font-bold text-slate-900 mb-4">{contestants.length}</div>
+        <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <h3 className="text-slate-400 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1">Total Candidates</h3>
+          <div className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">{contestants.length}</div>
           <div className="flex -space-x-2">
             {contestants.slice(0, 5).map(c => (
               <img key={c.id} src={c.image} className="w-8 h-8 rounded-full border-2 border-white object-cover" alt={c.name} />
@@ -67,10 +67,10 @@ export default function Dashboard({ currentUser, contestants, winnersAnnounced, 
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">System Status</h3>
-            <div className="flex items-center gap-2 text-green-500 font-bold text-xl">
+            <h3 className="text-slate-400 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1">System Status</h3>
+            <div className="flex items-center gap-2 text-green-500 font-bold text-base sm:text-xl">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-export default function AdminDashboard({ contestants, setContestants, posts, setPosts, winnersAnnounced, setWinnersAnnounced, notify, currentUser }) {
+export default function AdminDashboard({ contestants, setContestants, posts, setPosts, winnersAnnounced, setWinnersAnnounced, notify, currentUser, adminActiveTab, setAdminActiveTab }) {
   const [formData, setFormData] = useState({ name: '', post: '', image: '', bio: '' })
   const [imageFile, setImageFile] = useState(null)
-  const [activeTab, setActiveTab] = useState('overview')
+  // Use the activeTab from props if provided, otherwise use local state
+  const activeTab = adminActiveTab !== undefined ? adminActiveTab : 'overview'
+  const handleSetActiveTab = setAdminActiveTab || (() => {})
   const [users, setUsers] = useState([])
   const [votes, setVotes] = useState([])
   const [loading, setLoading] = useState(false)
@@ -131,7 +133,7 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
 
   // Fetch data when switching tabs
   const handleTabChange = async (tab) => {
-    setActiveTab(tab)
+    handleSetActiveTab(tab)
     try {
       if (tab === 'voters') {
         const { data } = await supabase.from('users').select('*')
@@ -429,29 +431,29 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
   }
 
   return (
-    <div className="grid lg:grid-cols-[260px,1fr] gap-6 lg:gap-8 text-slate-100">
+    <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-4 sm:gap-6 lg:gap-8 text-slate-100">
       {/* Sidebar Navigation */}
-      <aside className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 lg:p-5 flex flex-col gap-6 shadow-xl shadow-slate-950/40">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/40">
+      <aside className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 sm:p-4 lg:p-5 flex flex-col gap-4 sm:gap-6 shadow-xl shadow-slate-950/40">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg sm:text-xl shadow-lg shadow-blue-500/40 flex-shrink-0">
             <i className="fas fa-shield-alt"></i>
           </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 font-semibold">Admin</p>
-            <h2 className="text-sm font-semibold text-slate-100">Election Control Center</h2>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] sm:tracking-[0.22em] text-slate-500 font-semibold">Admin</p>
+            <h2 className="text-xs sm:text-sm font-semibold text-slate-100 truncate">Election Control Center</h2>
           </div>
         </div>
 
         <div className="space-y-1 text-xs text-slate-400">
           <p>Signed in as</p>
-          <p className="text-sm font-semibold text-slate-100 truncate">{currentUser?.name || currentUser?.email}</p>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 text-[11px] font-semibold text-purple-300 border border-purple-500/30 mt-1">
+          <p className="text-xs sm:text-sm font-semibold text-slate-100 truncate">{currentUser?.name || currentUser?.email}</p>
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full bg-purple-500/10 text-[10px] sm:text-[11px] font-semibold text-purple-300 border border-purple-500/30 mt-1 truncate">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
             Super Admin
           </span>
         </div>
 
-        <nav className="flex flex-col gap-1 pt-3 border-t border-slate-800 mt-2">
+        <nav className="hidden lg:flex flex-col gap-1 pt-3 border-t border-slate-800 mt-2">
           {[
             { id: 'overview', label: 'Overview', icon: 'fa-grid-2' },
             { id: 'posts', label: 'Manage Posts', icon: 'fa-diagram-project', badge: posts.length },
@@ -496,70 +498,76 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
         </nav>
 
         <div className="mt-auto space-y-3 text-xs">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Total votes</p>
-              <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalVotes}</p>
-            </div>
-            <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Contestants</p>
-              <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalContestants}</p>
-            </div>
-          </div>
-          <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Election Status</p>
-              <p className="mt-1 text-xs font-semibold text-slate-100">
-                {winnersAnnounced ? 'Results Announced' : 'Voting Live'}
-              </p>
-            </div>
-            <span
-              className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] ${
-                winnersAnnounced ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-400/20 text-emerald-300'
-              }`}
-            >
-              <i className={`fas ${winnersAnnounced ? 'fa-trophy' : 'fa-signal'}`}></i>
-            </span>
-          </div>
+          {activeTab === 'overview' && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Total votes</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalVotes}</p>
+                </div>
+                <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Contestants</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalContestants}</p>
+                </div>
+              </div>
+              <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">Election Status</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-100">
+                    {winnersAnnounced ? 'Results Announced' : 'Voting Live'}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] ${
+                    winnersAnnounced ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-400/20 text-emerald-300'
+                  }`}
+                >
+                  <i className={`fas ${winnersAnnounced ? 'fa-trophy' : 'fa-signal'}`}></i>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 
       {/* Main content */}
       <main className="space-y-8 bg-slate-900 p-4 lg:p-6 rounded-2xl border border-slate-800 shadow-xl">
-        {/* Header with Statistics */}
-        <div className="grid md:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-lg">
-            <div className="text-blue-100 text-xs font-semibold uppercase mb-1 tracking-wide">Total Votes Cast</div>
-            <div className="text-3xl font-bold">{stats.totalVotes}</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-2xl text-white shadow-lg">
-            <div className="text-purple-100 text-xs font-semibold uppercase mb-1 tracking-wide">Contestants</div>
-            <div className="text-3xl font-bold">{stats.totalContestants}</div>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-2xl text-white shadow-lg">
-            <div className="text-green-100 text-xs font-semibold uppercase mb-1 tracking-wide">Registered Voters</div>
-            <div className="text-3xl font-bold">{stats.totalVoters}</div>
-          </div>
-          <div
-            className={`bg-gradient-to-br ${
-              winnersAnnounced ? 'from-amber-500 to-amber-600' : 'from-slate-500 to-slate-600'
-            } p-5 rounded-2xl text-white shadow-lg flex flex-col justify-between`}
-          >
-            <div>
-              <div className="text-amber-100 text-xs font-semibold uppercase mb-1 tracking-wide">Election Status</div>
-              <div className="text-sm font-bold">
-                {winnersAnnounced ? '🏆 Results Out' : '🗳️ Voting Live'}
-              </div>
+        {/* Header with Statistics - Only on Overview */}
+        {activeTab === 'overview' && (
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-lg">
+              <div className="text-blue-100 text-xs font-semibold uppercase mb-1 tracking-wide">Total Votes Cast</div>
+              <div className="text-3xl font-bold">{stats.totalVotes}</div>
             </div>
-            <button
-              onClick={handleToggleResults}
-              className="mt-3 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/15 text-[11px] font-semibold hover:bg-slate-900/25 transition-colors"
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-2xl text-white shadow-lg">
+              <div className="text-purple-100 text-xs font-semibold uppercase mb-1 tracking-wide">Contestants</div>
+              <div className="text-3xl font-bold">{stats.totalContestants}</div>
+            </div>
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-2xl text-white shadow-lg">
+              <div className="text-green-100 text-xs font-semibold uppercase mb-1 tracking-wide">Registered Voters</div>
+              <div className="text-3xl font-bold">{stats.totalVoters}</div>
+            </div>
+            <div
+              className={`bg-gradient-to-br ${
+                winnersAnnounced ? 'from-amber-500 to-amber-600' : 'from-slate-500 to-slate-600'
+              } p-5 rounded-2xl text-white shadow-lg flex flex-col justify-between`}
             >
-              <i className={`fas ${winnersAnnounced ? 'fa-lock-open' : 'fa-bullhorn'} text-xs`}></i>
-              {winnersAnnounced ? 'Withdraw Results' : 'Announce Results'}
-            </button>
+              <div>
+                <div className="text-amber-100 text-xs font-semibold uppercase mb-1 tracking-wide">Election Status</div>
+                <div className="text-sm font-bold">
+                  {winnersAnnounced ? '🏆 Results Out' : '🗳️ Voting Live'}
+                </div>
+              </div>
+              <button
+                onClick={handleToggleResults}
+                className="mt-3 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/15 text-[11px] font-semibold hover:bg-slate-900/25 transition-colors"
+              >
+                <i className={`fas ${winnersAnnounced ? 'fa-lock-open' : 'fa-bullhorn'} text-xs`}></i>
+                {winnersAnnounced ? 'Withdraw Results' : 'Announce Results'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
@@ -676,36 +684,36 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
 
           {/* Contestants List */}
           <div className="lg:col-span-2">
-            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-slate-700 border-b border-slate-600">
+            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-700 border-b border-slate-600 sticky top-0">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-slate-200">Contestant</th>
-                    <th className="px-6 py-4 font-semibold text-slate-200">Post</th>
-                    <th className="px-6 py-4 font-semibold text-slate-200 text-center">Votes</th>
-                    <th className="px-6 py-4 font-semibold text-slate-200 text-right">Actions</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Contestant</th>
+                    <th className="hidden sm:table-cell px-6 py-4 font-semibold text-slate-200">Post</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-center text-xs sm:text-base">Votes</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-right text-xs sm:text-base">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
                   {contestants.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="4" className="px-3 sm:px-6 py-6 sm:py-8 text-center text-slate-400 text-sm">
                         No contestants added yet
                       </td>
                     </tr>
                   ) : (
                     contestants.map(c => (
                       <tr key={c.id} className="hover:bg-slate-700/40 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <img src={c.image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=40&h=40&fit=crop'} className="w-10 h-10 rounded-full object-cover" alt={c.name} />
-                            <span className="font-medium text-white">{c.name}</span>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <img src={c.image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=40&h=40&fit=crop'} className="w-8 sm:w-10 h-8 sm:h-10 rounded-full object-cover flex-shrink-0" alt={c.name} />
+                            <span className="font-medium text-white text-xs sm:text-base truncate">{c.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-slate-300 text-sm">{c.post}</td>
-                        <td className="px-6 py-4">
+                        <td className="hidden sm:table-cell px-6 py-4 text-slate-300 text-sm">{c.post}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
                           {editingVoteId === c.id ? (
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-1 sm:gap-2">
                               <input 
                                 type="number" 
                                 min="0"
@@ -713,11 +721,11 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
                                 onChange={(e) => setVoteInputValue(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSetVotesDirectly(c.id, voteInputValue)}
                                 autoFocus
-                                className="w-16 px-2 py-1 rounded bg-slate-900 border border-blue-500 text-blue-200 text-center font-bold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                className="w-14 sm:w-16 px-2 py-1 rounded bg-slate-900 border border-blue-500 text-blue-200 text-center font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 text-xs sm:text-base"
                               />
                               <button 
                                 onClick={() => handleSetVotesDirectly(c.id, voteInputValue)}
-                                className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold hover:bg-green-700"
+                                className="px-1.5 sm:px-2 py-1 rounded bg-green-600 text-white text-xs font-bold hover:bg-green-700 whitespace-nowrap"
                                 title="Save"
                               >
                                 <i className="fas fa-check"></i>
@@ -879,14 +887,14 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-700 border-b border-slate-600">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-700 border-b border-slate-600 sticky top-0">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-slate-200">Voter</th>
-                      <th className="px-6 py-4 font-semibold text-slate-200">Email</th>
-                      <th className="px-6 py-4 font-semibold text-slate-200">Position</th>
-                      <th className="px-6 py-4 font-semibold text-slate-200">Voted For</th>
-                      <th className="px-6 py-4 font-semibold text-slate-200 text-right">Date & Time</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Voter</th>
+                      <th className="hidden md:table-cell px-6 py-4 font-semibold text-slate-200">Email</th>
+                      <th className="hidden sm:table-cell px-6 py-4 font-semibold text-slate-200">Position</th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Voted For</th>
+                      <th className="hidden lg:table-cell px-6 py-4 font-semibold text-slate-200 text-right">Date & Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700">
@@ -904,22 +912,22 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
                         const post = posts.find(p => p.id === vote.contestant?.post_id)
                         return (
                           <tr key={vote.id} className="hover:bg-slate-700/40 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-7 sm:w-8 h-7 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-bold flex-shrink-0">
                                   {vote.user?.name?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
-                                <span className="font-medium text-white">{vote.user?.name || 'Unknown'}</span>
+                                <span className="font-medium text-white text-xs sm:text-base truncate">{vote.user?.name || 'Unknown'}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-slate-300 text-sm">{vote.user?.email || 'N/A'}</td>
-                            <td className="px-6 py-4">
+                            <td className="hidden md:table-cell px-6 py-4 text-slate-300 text-sm">{vote.user?.email || 'N/A'}</td>
+                            <td className="hidden sm:table-cell px-6 py-4">
                               <span className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-900/40 text-blue-200">
                                 {post?.name || vote.post || 'N/A'}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
+                            <td className="px-3 sm:px-6 py-3 sm:py-4">
+                              <div className="flex items-center gap-2 sm:gap-3">
                                 {vote.contestant?.image && (
                                   <img 
                                     src={vote.contestant.image} 
@@ -946,31 +954,31 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
 
       {/* Voters Tab */}
       {activeTab === 'voters' && (
-        <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-slate-700 border-b border-slate-600">
+        <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-700 border-b border-slate-600 sticky top-0">
               <tr>
-                <th className="px-6 py-4 font-semibold text-slate-200">Name</th>
-                <th className="px-6 py-4 font-semibold text-slate-200">Email</th>
-                <th className="px-6 py-4 font-semibold text-slate-200">Role</th>
-                <th className="px-6 py-4 font-semibold text-slate-200 text-right">Status</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Name</th>
+                <th className="hidden sm:table-cell px-6 py-4 font-semibold text-slate-200">Email</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-200 text-xs sm:text-base">Role</th>
+                <th className="hidden md:table-cell px-6 py-4 font-semibold text-slate-200 text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="4" className="px-3 sm:px-6 py-6 sm:py-8 text-center text-slate-400 text-sm">
                     No voters registered
                   </td>
                 </tr>
               ) : (
                 users.map(u => (
                   <tr key={u.id} className="hover:bg-slate-700/40 transition-colors">
-                    <td className="px-6 py-4 font-medium">{u.name}</td>
-                    <td className="px-6 py-4 text-slate-300 text-sm">{u.email}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium text-xs sm:text-base truncate">{u.name}</td>
+                    <td className="hidden sm:table-cell px-6 py-4 text-slate-300 text-sm">{u.email}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4">
                       <span
-                        className={`px-3 py-1 rounded-lg text-xs font-bold uppercase ${
+                        className={`px-2 sm:px-3 py-1 rounded-lg text-xs font-bold uppercase ${
                           (u.user_role || u.role) === 'admin'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-slate-700 text-slate-200'
@@ -979,7 +987,7 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
                         {u.user_role || u.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="hidden md:table-cell px-6 py-4 text-right">
                       <span className="text-green-300 text-sm font-medium flex items-center gap-1 justify-end">
                         <i className="fas fa-check-circle"></i> Registered
                       </span>

@@ -10,10 +10,12 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activePage, setActivePage] = useState('dashboard')
+  const [adminActiveTab, setAdminActiveTab] = useState('overview')
   const [notification, setNotification] = useState(null)
   const [contestants, setContestants] = useState([])
   const [posts, setPosts] = useState([])
   const [winnersAnnounced, setWinnersAnnounced] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Check if user is logged in
   useEffect(() => {
@@ -155,21 +157,18 @@ function App() {
           </div>
         )}
         <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-          <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-purple-500/30">
                 <i className="fas fa-user-shield"></i>
               </div>
-              <div>
+              <div className="hidden sm:block">
                 <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">EliteVote</p>
-                <h1 className="text-lg font-bold text-white">Admin Control Center</h1>
+                <p className="text-sm font-semibold text-white">{currentUser.name}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-semibold text-white">{currentUser.name}</p>
-                <p className="text-xs uppercase tracking-wide text-purple-300 font-bold">Admin</p>
-              </div>
+            <div className="hidden md:flex items-center gap-4">
+              <p className="text-xs uppercase tracking-wide text-purple-300 font-bold">Super Admin</p>
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-slate-100 text-sm font-semibold hover:bg-slate-700 border border-slate-700 flex items-center gap-2"
@@ -178,9 +177,76 @@ function App() {
                 Logout
               </button>
             </div>
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden text-white text-2xl"
+            >
+              <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+            </button>
           </div>
+          
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-slate-800 bg-slate-900/50 backdrop-blur">
+              <nav className="px-4 py-4 space-y-1 max-w-7xl mx-auto">
+                <div className="pb-4 border-b border-slate-700 mb-4">
+                  <p className="text-sm font-semibold text-white mb-1">{currentUser.name}</p>
+                  <p className="text-xs uppercase tracking-wide text-purple-300 font-bold">Admin</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <AdminMobileNavButton 
+                    icon="fa-grid-2" 
+                    label="Overview" 
+                    active={adminActiveTab === 'overview'}
+                    onClick={() => { setAdminActiveTab('overview'); setMobileMenuOpen(false) }}
+                  />
+                  <AdminMobileNavButton 
+                    icon="fa-diagram-project" 
+                    label="Manage Posts" 
+                    active={adminActiveTab === 'posts'}
+                    onClick={() => { setAdminActiveTab('posts'); setMobileMenuOpen(false) }}
+                  />
+                  <AdminMobileNavButton 
+                    icon="fa-user-tie" 
+                    label="Manage Contestants" 
+                    active={adminActiveTab === 'contestants'}
+                    onClick={() => { setAdminActiveTab('contestants'); setMobileMenuOpen(false) }}
+                  />
+                  <AdminMobileNavButton 
+                    icon="fa-trophy" 
+                    label="Results & Winners" 
+                    active={adminActiveTab === 'results'}
+                    onClick={() => { setAdminActiveTab('results'); setMobileMenuOpen(false) }}
+                  />
+                  <AdminMobileNavButton 
+                    icon="fa-clock-rotate-left" 
+                    label="Vote History" 
+                    active={adminActiveTab === 'history'}
+                    onClick={() => { setAdminActiveTab('history'); setMobileMenuOpen(false) }}
+                  />
+                  <AdminMobileNavButton 
+                    icon="fa-users" 
+                    label="Voters" 
+                    active={adminActiveTab === 'voters'}
+                    onClick={() => { setAdminActiveTab('voters'); setMobileMenuOpen(false) }}
+                  />
+                </div>
+                
+                <div className="pt-4 border-t border-slate-700 mt-4">
+                  <button
+                    onClick={() => { handleLogout(); setMobileMenuOpen(false) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-400 hover:bg-slate-800 transition-all"
+                  >
+                    <i className="fas fa-sign-out-alt w-5 text-center"></i>
+                    <span className="flex-1 text-left">Logout</span>
+                  </button>
+                </div>
+              </nav>
+            </div>
+          )}
         </header>
-        <main className="max-w-7xl mx-auto px-4 lg:px-6 py-6 lg:py-8">
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
           <AdminDashboard 
             contestants={contestants}
             setContestants={setContestants}
@@ -190,6 +256,8 @@ function App() {
             setWinnersAnnounced={setWinnersAnnounced}
             notify={notify}
             currentUser={currentUser}
+            adminActiveTab={adminActiveTab}
+            setAdminActiveTab={setAdminActiveTab}
           />
         </main>
       </div>
@@ -204,11 +272,75 @@ function App() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-blue-200">
+              <i className="fas fa-vote-yea"></i>
+            </div>
+            <h1 className="text-base sm:text-lg font-extrabold text-slate-900">EliteVote</h1>
+          </div>
+          
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden text-slate-900 text-2xl"
+          >
+            <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-200 bg-slate-50">
+            <nav className="px-4 py-4 space-y-1 max-w-7xl mx-auto">
+              <MobileNavButton 
+                icon="fas fa-chart-pie" 
+                label="Dashboard" 
+                active={activePage === 'dashboard'}
+                onClick={() => { setActivePage('dashboard'); setMobileMenuOpen(false) }}
+              />
+              {!winnersAnnounced && (
+                <MobileNavButton 
+                  icon="fas fa-person-booth" 
+                  label="Voting Booth" 
+                  active={activePage === 'voting'}
+                  onClick={() => { setActivePage('voting'); setMobileMenuOpen(false) }}
+                />
+              )}
+              <MobileNavButton 
+                icon="fas fa-bullhorn" 
+                label="Winners" 
+                active={activePage === 'announcements'}
+                onClick={() => { setActivePage('announcements'); setMobileMenuOpen(false) }}
+              />
+              {(currentUser?.role || currentUser?.user_role) === 'admin' && (
+                <MobileNavButton 
+                  icon="fas fa-user-shield" 
+                  label="Admin" 
+                  active={activePage === 'admin'}
+                  onClick={() => { setActivePage('admin'); setMobileMenuOpen(false) }}
+                />
+              )}
+              <div className="pt-2 border-t border-slate-200 mt-2">
+                <button
+                  onClick={() => { handleLogout(); setMobileMenuOpen(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-all"
+                >
+                  <i className="fas fa-sign-out-alt w-5 text-center"></i>
+                  <span className="flex-1 text-left">Logout</span>
+                </button>
+              </div>
+            </nav>
+          </div>
+        )}
+      </header>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-10">
-          {/* Sidebar */}
+          {/* Sidebar - Desktop only */}
           <aside className="hidden lg:flex flex-col">
-            <div className="sticky top-8">
+            <div className="sticky top-24">
               <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-slate-50">
                   <div className="flex items-center gap-4">
@@ -357,6 +489,38 @@ function NavButton({ icon, label, page, active, onClick, accent = 'blue' }) {
       <i className={`${icon} w-5 text-center`}></i>
       <span className="flex-1 text-left">{label}</span>
       {active && <span className={`w-2 h-2 rounded-full ${accent === 'purple' ? 'bg-purple-500' : 'bg-blue-500'}`}></span>}
+    </button>
+  )
+}
+
+function MobileNavButton({ icon, label, active, onClick }) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+        active 
+          ? 'bg-blue-50 text-blue-700' 
+          : 'text-slate-600 hover:bg-slate-100'
+      }`}
+    >
+      <i className={`${icon} w-5 text-center`}></i>
+      <span className="flex-1 text-left">{label}</span>
+    </button>
+  )
+}
+
+function AdminMobileNavButton({ icon, label, active, onClick }) {
+  return (
+    <button 
+      onClick={onClick} 
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+        active 
+          ? 'bg-slate-100 text-slate-900' 
+          : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+      }`}
+    >
+      <i className={`fas ${icon} w-5 text-center`}></i>
+      <span className="flex-1 text-left">{label}</span>
     </button>
   )
 }
