@@ -12,6 +12,8 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
   const [editingVoteId, setEditingVoteId] = useState(null)
   const [voteInputValue, setVoteInputValue] = useState('')
   const [postFormData, setPostFormData] = useState({ name: '', description: '' })
+  const [voteFilterPostId, setVoteFilterPostId] = useState('all')
+  const [voteFilterContestantId, setVoteFilterContestantId] = useState('all')
 
   // Calculate statistics
   useEffect(() => {
@@ -427,63 +429,140 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
   }
 
   return (
-    <div className="space-y-8 text-slate-100 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl">
-      {/* Header with Statistics */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl text-white shadow-lg">
-          <div className="text-blue-100 text-sm font-semibold uppercase mb-1">Total Votes Cast</div>
-          <div className="text-4xl font-bold">{stats.totalVotes}</div>
+    <div className="grid lg:grid-cols-[260px,1fr] gap-6 lg:gap-8 text-slate-100">
+      {/* Sidebar Navigation */}
+      <aside className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 lg:p-5 flex flex-col gap-6 shadow-xl shadow-slate-950/40">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/40">
+            <i className="fas fa-shield-alt"></i>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500 font-semibold">Admin</p>
+            <h2 className="text-sm font-semibold text-slate-100">Election Control Center</h2>
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl text-white shadow-lg">
-          <div className="text-purple-100 text-sm font-semibold uppercase mb-1">Contestants</div>
-          <div className="text-4xl font-bold">{stats.totalContestants}</div>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-2xl text-white shadow-lg">
-          <div className="text-green-100 text-sm font-semibold uppercase mb-1">Registered Voters</div>
-          <div className="text-4xl font-bold">{stats.totalVoters}</div>
-        </div>
-        <div className={`bg-gradient-to-br ${winnersAnnounced ? 'from-amber-500 to-amber-600' : 'from-slate-500 to-slate-600'} p-6 rounded-2xl text-white shadow-lg`}>
-          <div className="text-amber-100 text-sm font-semibold uppercase mb-1">Election Status</div>
-          <div className="text-lg font-bold">{winnersAnnounced ? '🏆 Results Out' : '🗳️ Voting Live'}</div>
-        </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-700">
-        <button 
-          onClick={() => handleTabChange('overview')}
-          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'overview' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Overview
-        </button>
-        <button 
-          onClick={() => handleTabChange('posts')}
-          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'posts' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Manage Posts ({posts.length})
-        </button>
-        <button 
-          onClick={() => handleTabChange('contestants')}
-          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'contestants' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Manage Contestants
-        </button>
-        <button 
-          onClick={() => handleTabChange('results')}
-          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'results' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Results & Winners
-        </button>
-        <button 
-          onClick={() => handleTabChange('voters')}
-          className={`pb-4 px-4 font-bold transition-all ${activeTab === 'voters' ? 'text-blue-300 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          Voters ({users.length})
-        </button>
-      </div>
+        <div className="space-y-1 text-xs text-slate-400">
+          <p>Signed in as</p>
+          <p className="text-sm font-semibold text-slate-100 truncate">{currentUser?.name || currentUser?.email}</p>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 text-[11px] font-semibold text-purple-300 border border-purple-500/30 mt-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+            Super Admin
+          </span>
+        </div>
 
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
+        <nav className="flex flex-col gap-1 pt-3 border-t border-slate-800 mt-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: 'fa-grid-2' },
+            { id: 'posts', label: 'Manage Posts', icon: 'fa-diagram-project', badge: posts.length },
+            { id: 'contestants', label: 'Manage Contestants', icon: 'fa-user-tie' },
+            { id: 'results', label: 'Results & Winners', icon: 'fa-trophy' },
+            { id: 'history', label: 'Vote History', icon: 'fa-clock-rotate-left' },
+            { id: 'voters', label: 'Voters', icon: 'fa-users', badge: users.length },
+          ].map(item => {
+            const active = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleTabChange(item.id)}
+                className={`group w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                  active
+                    ? 'bg-slate-100 text-slate-900 shadow-sm shadow-slate-900/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] ${
+                      active ? 'bg-slate-900 text-slate-100' : 'bg-slate-800 text-slate-300 group-hover:bg-slate-700'
+                    }`}
+                  >
+                    <i className={`fas ${item.icon}`}></i>
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                </span>
+                {item.badge !== undefined && (
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                      active ? 'bg-slate-900 text-slate-100' : 'bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="mt-auto space-y-3 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Total votes</p>
+              <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalVotes}</p>
+            </div>
+            <div className="bg-slate-900 rounded-xl p-3 border border-slate-800">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Contestants</p>
+              <p className="mt-1 text-lg font-semibold text-slate-100">{stats.totalContestants}</p>
+            </div>
+          </div>
+          <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">Election Status</p>
+              <p className="mt-1 text-xs font-semibold text-slate-100">
+                {winnersAnnounced ? 'Results Announced' : 'Voting Live'}
+              </p>
+            </div>
+            <span
+              className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] ${
+                winnersAnnounced ? 'bg-amber-400/20 text-amber-300' : 'bg-emerald-400/20 text-emerald-300'
+              }`}
+            >
+              <i className={`fas ${winnersAnnounced ? 'fa-trophy' : 'fa-signal'}`}></i>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="space-y-8 bg-slate-900 p-4 lg:p-6 rounded-2xl border border-slate-800 shadow-xl">
+        {/* Header with Statistics */}
+        <div className="grid md:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-lg">
+            <div className="text-blue-100 text-xs font-semibold uppercase mb-1 tracking-wide">Total Votes Cast</div>
+            <div className="text-3xl font-bold">{stats.totalVotes}</div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-2xl text-white shadow-lg">
+            <div className="text-purple-100 text-xs font-semibold uppercase mb-1 tracking-wide">Contestants</div>
+            <div className="text-3xl font-bold">{stats.totalContestants}</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-2xl text-white shadow-lg">
+            <div className="text-green-100 text-xs font-semibold uppercase mb-1 tracking-wide">Registered Voters</div>
+            <div className="text-3xl font-bold">{stats.totalVoters}</div>
+          </div>
+          <div
+            className={`bg-gradient-to-br ${
+              winnersAnnounced ? 'from-amber-500 to-amber-600' : 'from-slate-500 to-slate-600'
+            } p-5 rounded-2xl text-white shadow-lg flex flex-col justify-between`}
+          >
+            <div>
+              <div className="text-amber-100 text-xs font-semibold uppercase mb-1 tracking-wide">Election Status</div>
+              <div className="text-sm font-bold">
+                {winnersAnnounced ? '🏆 Results Out' : '🗳️ Voting Live'}
+              </div>
+            </div>
+            <button
+              onClick={handleToggleResults}
+              className="mt-3 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/15 text-[11px] font-semibold hover:bg-slate-900/25 transition-colors"
+            >
+              <i className={`fas ${winnersAnnounced ? 'fa-lock-open' : 'fa-bullhorn'} text-xs`}></i>
+              {winnersAnnounced ? 'Withdraw Results' : 'Announce Results'}
+            </button>
+          </div>
+        </div>
+
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
         <div className="space-y-6">
           <div className="flex flex-wrap gap-4">
             <button 
@@ -702,7 +781,6 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
       {/* Results Tab */}
       {activeTab === 'results' && (
         <div className="space-y-6">
-          {/* Winners Section */}
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white mb-4">🏆 Election Winners</h2>
             {getWinners().map(({ post, winner, postContestants }) => {
@@ -747,30 +825,82 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
               )
             })}
           </div>
+        </div>
+      )}
 
-          {/* Vote History Section */}
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-white mb-4">📊 Vote History</h2>
-            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-              {votes.length === 0 ? (
-                <div className="p-8 text-center">
-                  <i className="fas fa-vote-yea text-5xl text-slate-600 mb-4"></i>
-                  <p className="text-slate-400">No votes have been cast yet</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-700 border-b border-slate-600">
-                      <tr>
-                        <th className="px-6 py-4 font-semibold text-slate-200">Voter</th>
-                        <th className="px-6 py-4 font-semibold text-slate-200">Email</th>
-                        <th className="px-6 py-4 font-semibold text-slate-200">Position</th>
-                        <th className="px-6 py-4 font-semibold text-slate-200">Voted For</th>
-                        <th className="px-6 py-4 font-semibold text-slate-200 text-right">Date & Time</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                      {votes.map((vote) => {
+      {/* Vote History Tab */}
+      {activeTab === 'history' && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-1">📊 Vote History</h2>
+              <p className="text-slate-400 text-sm">See who voted for each candidate, filtered by position and contestant.</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Filter by Position</label>
+                <select
+                  value={voteFilterPostId}
+                  onChange={(e) => {
+                    setVoteFilterPostId(e.target.value)
+                    setVoteFilterContestantId('all')
+                  }}
+                  className="bg-slate-900 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2"
+                >
+                  <option value="all">All Positions</option>
+                  {posts.map(post => (
+                    <option key={post.id} value={post.id}>{post.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">Filter by Candidate</label>
+                <select
+                  value={voteFilterContestantId}
+                  onChange={(e) => setVoteFilterContestantId(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2"
+                >
+                  <option value="all">All Candidates</option>
+                  {contestants
+                    .filter(c => voteFilterPostId === 'all' || c.post_id === voteFilterPostId)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+            {votes.length === 0 ? (
+              <div className="p-8 text-center">
+                <i className="fas fa-vote-yea text-5xl text-slate-600 mb-4"></i>
+                <p className="text-slate-400">No votes have been cast yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-700 border-b border-slate-600">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold text-slate-200">Voter</th>
+                      <th className="px-6 py-4 font-semibold text-slate-200">Email</th>
+                      <th className="px-6 py-4 font-semibold text-slate-200">Position</th>
+                      <th className="px-6 py-4 font-semibold text-slate-200">Voted For</th>
+                      <th className="px-6 py-4 font-semibold text-slate-200 text-right">Date & Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700">
+                    {votes
+                      .filter(vote => {
+                        const matchesPost = voteFilterPostId === 'all'
+                          ? true
+                          : vote.contestant?.post_id === voteFilterPostId
+                        const matchesContestant = voteFilterContestantId === 'all'
+                          ? true
+                          : vote.contestant_id === voteFilterContestantId
+                        return matchesPost && matchesContestant
+                      })
+                      .map((vote) => {
                         const post = posts.find(p => p.id === vote.contestant?.post_id)
                         return (
                           <tr key={vote.id} className="hover:bg-slate-700/40 transition-colors">
@@ -806,11 +936,10 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
                           </tr>
                         )
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -951,6 +1080,7 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
           </div>
         </div>
       )}
+      </main>
     </div>
   )
 }

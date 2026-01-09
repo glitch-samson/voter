@@ -314,14 +314,16 @@ function App() {
               />
             )}
             {activePage === 'admin' && (currentUser?.role || currentUser?.user_role) === 'admin' && (
-              <AdminDashboard 
-                contestants={contestants}
-                setContestants={setContestants}
-                winnersAnnounced={winnersAnnounced}
-                setWinnersAnnounced={setWinnersAnnounced}
-                notify={notify}
-                currentUser={currentUser}
-              />
+          <AdminDashboard 
+            contestants={contestants}
+            setContestants={setContestants}
+            posts={posts}
+            setPosts={setPosts}
+            winnersAnnounced={winnersAnnounced}
+            setWinnersAnnounced={setWinnersAnnounced}
+            notify={notify}
+            currentUser={currentUser}
+          />
             )}
             {activePage === 'admin' && (currentUser?.role || currentUser?.user_role) !== 'admin' && (
               <div className="bg-white rounded-2xl shadow-sm border p-8 text-center">
