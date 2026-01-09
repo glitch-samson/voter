@@ -24,6 +24,109 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
     })
   }, [contestants, users])
 
+  // Real-time subscription for contestants (vote updates)
+  useEffect(() => {
+    const channel = supabase
+      .channel('contestants-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'contestants'
+        },
+        async (payload) => {
+          // Refresh contestants when any change occurs
+          const { data } = await supabase
+            .from('contestants')
+            .select('*')
+            .order('post_id', { ascending: true })
+          
+          if (data) {
+            setContestants(data)
+            // Show notification for vote updates (only if vote count changed)
+            if (payload.eventType === 'UPDATE' && payload.new.votes !== payload.old?.votes) {
+              const contestant = data.find(c => c.id === payload.new.id)
+              if (contestant) {
+                // Only notify if it's a user vote (not admin adjustment)
+                // Admin adjustments will show their own notification
+                const voteDiff = payload.new.votes - (payload.old?.votes || 0)
+                if (voteDiff === 1) {
+                  notify(`New vote: ${contestant.name} now has ${contestant.votes} votes`)
+                }
+              }
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // Real-time subscription for votes (new votes being cast)
+  useEffect(() => {
+    const channel = supabase
+      .channel('votes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT', // Only listen to new votes
+          schema: 'public',
+          table: 'votes'
+        },
+        async () => {
+          // Refresh votes list if on results tab (with enriched data)
+          if (activeTab === 'results') {
+            const { data: votesData } = await supabase
+              .from('votes')
+              .select('*')
+              .order('created_at', { ascending: false })
+
+            if (votesData && votesData.length > 0) {
+              const userIds = [...new Set(votesData.map(v => v.user_id))]
+              const contestantIds = [...new Set(votesData.map(v => v.contestant_id))]
+
+              const { data: usersData } = await supabase
+                .from('users')
+                .select('id, name, email')
+                .in('id', userIds)
+
+              const { data: contestantsData } = await supabase
+                .from('contestants')
+                .select('id, name, image, post_id')
+                .in('id', contestantIds)
+
+              const enrichedVotes = votesData.map(vote => ({
+                ...vote,
+                user: usersData?.find(u => u.id === vote.user_id),
+                contestant: contestantsData?.find(c => c.id === vote.contestant_id)
+              }))
+
+              setVotes(enrichedVotes)
+            }
+          }
+          
+          // Refresh contestants to get updated vote counts
+          const { data } = await supabase
+            .from('contestants')
+            .select('*')
+            .order('post_id', { ascending: true })
+          
+          if (data) {
+            setContestants(data)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeTab])
+
   // Fetch data when switching tabs
   const handleTabChange = async (tab) => {
     setActiveTab(tab)
@@ -32,10 +135,43 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
         const { data } = await supabase.from('users').select('*')
         setUsers(data || [])
       } else if (tab === 'results') {
-        const { data } = await supabase.from('votes').select('*')
-        setVotes(data || [])
+        // Fetch votes with user and contestant information
+        const { data: votesData, error: votesError } = await supabase
+          .from('votes')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        if (votesError) throw votesError
+
+        // Fetch related user and contestant data
+        if (votesData && votesData.length > 0) {
+          const userIds = [...new Set(votesData.map(v => v.user_id))]
+          const contestantIds = [...new Set(votesData.map(v => v.contestant_id))]
+
+          const { data: usersData } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .in('id', userIds)
+
+          const { data: contestantsData } = await supabase
+            .from('contestants')
+            .select('id, name, image, post_id')
+            .in('id', contestantIds)
+
+          // Combine the data
+          const enrichedVotes = votesData.map(vote => ({
+            ...vote,
+            user: usersData?.find(u => u.id === vote.user_id),
+            contestant: contestantsData?.find(c => c.id === vote.contestant_id)
+          }))
+
+          setVotes(enrichedVotes)
+        } else {
+          setVotes([])
+        }
       }
     } catch (error) {
+      console.error('Error fetching data:', error)
       notify('Error fetching data')
     }
   }
@@ -566,47 +702,116 @@ export default function AdminDashboard({ contestants, setContestants, posts, set
       {/* Results Tab */}
       {activeTab === 'results' && (
         <div className="space-y-6">
-          {getWinners().map(({ post, winner, postContestants }) => {
-            const others = postContestants.filter(c => c.id !== winner?.id).sort((a, b) => (b.votes || 0) - (a.votes || 0))
-            return (
-              <div key={post.id} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-6 text-white">
-                  <h3 className="text-lg font-bold">{post.name}</h3>
-                  {post.description && <p className="text-sm text-blue-100 mt-1">{post.description}</p>}
-                </div>
-                <div className="p-6">
-                  {winner ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-amber-900/40 to-yellow-900/30 border-2 border-amber-600/50">
-                        <div className="text-3xl">🥇</div>
-                        <img src={winner.image} className="w-12 h-12 rounded-full object-cover" alt={winner.name} />
-                        <div className="flex-1">
-                          <p className="font-bold text-white">{winner.name}</p>
-                          <p className="text-sm text-slate-300">{winner.votes} votes</p>
+          {/* Winners Section */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-4">🏆 Election Winners</h2>
+            {getWinners().map(({ post, winner, postContestants }) => {
+              const others = postContestants.filter(c => c.id !== winner?.id).sort((a, b) => (b.votes || 0) - (a.votes || 0))
+              return (
+                <div key={post.id} className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-6 text-white">
+                    <h3 className="text-lg font-bold">{post.name}</h3>
+                    {post.description && <p className="text-sm text-blue-100 mt-1">{post.description}</p>}
+                  </div>
+                  <div className="p-6">
+                    {winner ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-amber-900/40 to-yellow-900/30 border-2 border-amber-600/50">
+                          <div className="text-3xl">🥇</div>
+                          <img src={winner.image} className="w-12 h-12 rounded-full object-cover" alt={winner.name} />
+                          <div className="flex-1">
+                            <p className="font-bold text-white">{winner.name}</p>
+                            <p className="text-sm text-slate-300">{winner.votes} votes</p>
+                          </div>
+                          <div className="text-2xl font-bold text-amber-300">{winner.votes}</div>
                         </div>
-                        <div className="text-2xl font-bold text-amber-300">{winner.votes}</div>
+                        {others.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-bold text-slate-400 uppercase">Other Candidates</p>
+                            {others.map((c, idx) => (
+                              <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800 border border-slate-700">
+                                <span className="text-sm font-bold text-slate-400">{idx + 2}</span>
+                                <img src={c.image} className="w-8 h-8 rounded-full object-cover grayscale" alt={c.name} />
+                                <p className="flex-1 font-medium text-slate-200">{c.name}</p>
+                                <span className="font-bold text-slate-300">{c.votes} votes</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {others.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-bold text-slate-400 uppercase">Other Candidates</p>
-                          {others.map((c, idx) => (
-                            <div key={c.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800 border border-slate-700">
-                              <span className="text-sm font-bold text-slate-400">{idx + 2}</span>
-                              <img src={c.image} className="w-8 h-8 rounded-full object-cover grayscale" alt={c.name} />
-                              <p className="flex-1 font-medium text-slate-200">{c.name}</p>
-                              <span className="font-bold text-slate-300">{c.votes} votes</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-slate-400">No contestants for this position</p>
-                  )}
+                    ) : (
+                      <p className="text-slate-400">No contestants for this position</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+
+          {/* Vote History Section */}
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-white mb-4">📊 Vote History</h2>
+            <div className="bg-slate-800 rounded-2xl shadow-sm border border-slate-700 overflow-hidden">
+              {votes.length === 0 ? (
+                <div className="p-8 text-center">
+                  <i className="fas fa-vote-yea text-5xl text-slate-600 mb-4"></i>
+                  <p className="text-slate-400">No votes have been cast yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-700 border-b border-slate-600">
+                      <tr>
+                        <th className="px-6 py-4 font-semibold text-slate-200">Voter</th>
+                        <th className="px-6 py-4 font-semibold text-slate-200">Email</th>
+                        <th className="px-6 py-4 font-semibold text-slate-200">Position</th>
+                        <th className="px-6 py-4 font-semibold text-slate-200">Voted For</th>
+                        <th className="px-6 py-4 font-semibold text-slate-200 text-right">Date & Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {votes.map((vote) => {
+                        const post = posts.find(p => p.id === vote.contestant?.post_id)
+                        return (
+                          <tr key={vote.id} className="hover:bg-slate-700/40 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                  {vote.user?.name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <span className="font-medium text-white">{vote.user?.name || 'Unknown'}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-slate-300 text-sm">{vote.user?.email || 'N/A'}</td>
+                            <td className="px-6 py-4">
+                              <span className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-900/40 text-blue-200">
+                                {post?.name || vote.post || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                {vote.contestant?.image && (
+                                  <img 
+                                    src={vote.contestant.image} 
+                                    className="w-8 h-8 rounded-full object-cover" 
+                                    alt={vote.contestant.name}
+                                  />
+                                )}
+                                <span className="font-medium text-white">{vote.contestant?.name || 'Unknown Candidate'}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right text-slate-400 text-sm">
+                              {vote.created_at ? new Date(vote.created_at).toLocaleString() : 'N/A'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

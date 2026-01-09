@@ -2,29 +2,26 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
 export default function VoterView({ contestants, posts, currentUser, winnersAnnounced, notify, onVoteSuccess }) {
-  const [votedPostIds, setVotedPostIds] = useState([])
+  const [votedPosts, setVotedPosts] = useState([]) // Store post names (strings) that user has voted for
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchUserVotes = async () => {
       try {
-        const { data } = await supabase
+        // Fetch all votes for this user - the votes table stores 'post' as TEXT (post name)
+        const { data, error } = await supabase
           .from('votes')
-          .select('votes(contestant_id)')
+          .select('post')
           .eq('user_id', currentUser.id)
         
-        // Get the post_ids of posts this user has already voted for
-        if (data && data.length > 0) {
-          const votedContestantIds = data.map(v => v.votes?.contestant_id).filter(Boolean)
-          const contestantData = await supabase
-            .from('contestants')
-            .select('post_id')
-            .in('id', votedContestantIds)
-          
-          setVotedPostIds(contestantData.data?.map(c => c.post_id) || [])
-        }
+        if (error) throw error
+        
+        // Get unique post names that user has already voted for
+        const votedPostNames = [...new Set((data || []).map(v => v.post).filter(Boolean))]
+        setVotedPosts(votedPostNames)
       } catch (error) {
         console.error('Error fetching votes:', error)
+        notify('Error loading your voting history')
       } finally {
         setLoading(false)
       }
@@ -63,33 +60,64 @@ export default function VoterView({ contestants, posts, currentUser, winnersAnno
 
   const handleVote = async (candidateId, postId) => {
     try {
-      // Insert vote
-      const { error } = await supabase
+      // Find the post name from the posts array
+      const post = posts.find(p => p.id === postId)
+      if (!post) {
+        notify('Error: Post not found')
+        return
+      }
+
+      // Check if user has already voted for this position
+      if (votedPosts.includes(post.name)) {
+        notify('You have already voted for this position')
+        return
+      }
+
+      // Insert vote record - the UNIQUE constraint on (user_id, post) will prevent duplicates
+      const { error: voteError } = await supabase
         .from('votes')
         .insert([{
           user_id: currentUser.id,
           contestant_id: candidateId,
-          post: null
+          post: post.name // Store the post name as TEXT
         }])
       
-      if (error) throw error
+      if (voteError) {
+        // Check if it's a duplicate vote error
+        if (voteError.code === '23505' || voteError.message.includes('duplicate')) {
+          notify('You have already voted for this position')
+          // Refresh voted posts to update UI
+          const { data } = await supabase
+            .from('votes')
+            .select('post')
+            .eq('user_id', currentUser.id)
+          const votedPostNames = [...new Set((data || []).map(v => v.post).filter(Boolean))]
+          setVotedPosts(votedPostNames)
+          return
+        }
+        throw voteError
+      }
 
-      // Update contestant votes
+      // Update contestant vote count
       const { data: contestant } = await supabase
         .from('contestants')
         .select('votes')
         .eq('id', candidateId)
         .single()
 
-      await supabase
-        .from('contestants')
-        .update({ votes: (contestant?.votes || 0) + 1 })
-        .eq('id', candidateId)
+      if (contestant) {
+        await supabase
+          .from('contestants')
+          .update({ votes: (contestant.votes || 0) + 1 })
+          .eq('id', candidateId)
+      }
 
-      setVotedPostIds([...votedPostIds, postId])
+      // Update local state to reflect the vote
+      setVotedPosts([...votedPosts, post.name])
       notify('Vote cast successfully!')
       onVoteSuccess()
     } catch (error) {
+      console.error('Vote error:', error)
       notify(error.message || 'Error casting vote')
     }
   }
@@ -113,63 +141,72 @@ export default function VoterView({ contestants, posts, currentUser, winnersAnno
         </div>
       )}
       
-      {positions.map(post => (
-        <section key={post.id} className="animate-in fade-in duration-700">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-              <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
-              {post.name}
-            </h2>
-            {votedPostIds.includes(post.id) && (
-              <span className="text-green-600 font-medium flex items-center gap-1">
-                <i className="fas fa-check-circle"></i> Voted
-              </span>
-            )}
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {contestants.filter(c => c.post_id === post.id).map(candidate => (
-              <div key={candidate.id} className="bg-white rounded-2xl shadow-sm border hover:shadow-md transition-all group overflow-hidden">
-                <div className="relative h-48 overflow-hidden">
-                  <img 
-                    src={candidate.image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400'} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    alt={candidate.name}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <h3 className="text-lg font-bold">{candidate.name}</h3>
-                    <p className="text-sm opacity-90">{post.name}</p>
-                  </div>
-                </div>
-                <div className="p-5">
-                  <p className="text-slate-600 text-sm mb-6 line-clamp-2 h-10">
-                    {candidate.bio || "No biography provided for this official candidate."}
-                  </p>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-slate-400 uppercase font-bold tracking-wider">Current Votes</span>
-                      <span className="text-xl font-bold text-slate-900">{candidate.votes || 0}</span>
+      {positions.map(post => {
+        const hasVoted = votedPosts.includes(post.name)
+        return (
+          <section key={post.id} className="animate-in fade-in duration-700">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
+                {post.name}
+              </h2>
+              {hasVoted && (
+                <span className="text-green-600 font-medium flex items-center gap-1">
+                  <i className="fas fa-check-circle"></i> Voted
+                </span>
+              )}
+            </div>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {contestants.filter(c => c.post_id === post.id).map(candidate => (
+                <div key={candidate.id} className="bg-white rounded-2xl shadow-sm border hover:shadow-md transition-all group overflow-hidden">
+                  <div className="relative h-48 overflow-hidden">
+                    <img 
+                      src={candidate.image || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400'} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      alt={candidate.name}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div className="absolute bottom-4 left-4 text-white">
+                      <h3 className="text-lg font-bold">{candidate.name}</h3>
+                      <p className="text-sm opacity-90">{post.name}</p>
                     </div>
-                    <button 
-                      disabled={votedPostIds.includes(post.id)}
-                      onClick={() => handleVote(candidate.id, post.id)}
-                      className={`px-6 py-2 rounded-xl font-bold transition-all ${
-                        votedPostIds.includes(post.id) 
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
-                      }`}
-                    >
-                      {votedPostIds.includes(post.id) ? 'Cast' : 'Vote'}
-                    </button>
+                  </div>
+                  <div className="p-5">
+                    <p className="text-slate-600 text-sm mb-6 line-clamp-2 h-10">
+                      {candidate.bio || "No biography provided for this official candidate."}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-400 uppercase font-bold tracking-wider">Current Votes</span>
+                        <span className="text-xl font-bold text-slate-900">{candidate.votes || 0}</span>
+                      </div>
+                      <button 
+                        disabled={hasVoted}
+                        onClick={() => handleVote(candidate.id, post.id)}
+                        className={`px-6 py-2 rounded-xl font-bold transition-all ${
+                          hasVoted
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
+                        }`}
+                      >
+                        {hasVoted ? (
+                          <span className="flex items-center gap-2">
+                            <i className="fas fa-check"></i> Voted
+                          </span>
+                        ) : (
+                          'Vote'
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+              ))}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
