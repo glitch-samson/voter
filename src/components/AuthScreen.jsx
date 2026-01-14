@@ -163,11 +163,7 @@ export default function AuthScreen({ onAuthSuccess, notify }) {
           </button>
         </p>
         
-        <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-          <p className="text-xs text-slate-500 text-center">
-            <strong>Demo Admin:</strong> Create an account or use Supabase Auth
-          </p>
-        </div>
+        
       </div>
     </div>
   )
